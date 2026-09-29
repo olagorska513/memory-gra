@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>Memory</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-bar">
+    <h1 class="app-title">Memory</h1>
+    <button type="button" id="mute-btn" class="icon-btn" aria-pressed="false" aria-label="Wycisz dźwięk" title="Wycisz dźwięk">
+      <span class="mute-icon" aria-hidden="true">🔊</span>
+    </button>
+  </header>
+
+  <main class="screens">
+    <!-- Ekran startowy -->
+    <section id="screen-start" class="screen screen-start" aria-labelledby="start-title">
+      <h2 id="start-title" class="screen-title" tabindex="-1">Nowa gra</h2>
+
+      <form id="start-form" class="start-form">
+        <fieldset class="choice-group">
+          <legend>Poziom</legend>
+          <label class="choice">
+            <input type="radio" name="level" value="easy">
+            <span class="choice-body">
+              <span class="choice-title">Łatwy</span>
+              <span class="choice-sub">4×4 · 8 par</span>
+              <span class="choice-record" id="record-easy"></span>
+            </span>
+          </label>
+          <label class="choice">
+            <input type="radio" name="level" value="medium">
+            <span class="choice-body">
+              <span class="choice-title">Średni</span>
+              <span class="choice-sub">4×6 · 12 par</span>
+              <span class="choice-record" id="record-medium"></span>
+            </span>
+          </label>
+          <label class="choice">
+            <input type="radio" name="level" value="hard">
+            <span class="choice-body">
+              <span class="choice-title">Trudny</span>
+              <span class="choice-sub">6×6 · 18 par</span>
+              <span class="choice-record" id="record-hard"></span>
+            </span>
+          </label>
+        </fieldset>
+
+        <fieldset class="choice-group">
+          <legend>Motyw</legend>
+          <label class="choice">
+            <input type="radio" name="theme" value="animals">
+            <span class="choice-body">
+              <span class="choice-emoji" aria-hidden="true">🐶</span>
+              <span class="choice-title">Zwierzęta</span>
+            </span>
+          </label>
+          <label class="choice">
+            <input type="radio" name="theme" value="fruits">
+            <span class="choice-body">
+              <span class="choice-emoji" aria-hidden="true">🍓</span>
+              <span class="choice-title">Owoce</span>
+            </span>
+          </label>
+          <label class="choice">
+            <input type="radio" name="theme" value="vehicles">
+            <span class="choice-body">
+              <span class="choice-emoji" aria-hidden="true">🚗</span>
+              <span class="choice-title">Pojazdy</span>
+            </span>
+          </label>
+        </fieldset>
+
+        <button type="submit" class="btn btn-primary btn-play">Graj</button>
+      </form>
+
+      <button type="button" id="clear-records-btn" class="btn btn-link">Wyczyść rekordy</button>
+    </section>
+
+    <!-- Ekran gry -->
+    <section id="screen-game" class="screen screen-game" aria-label="Gra" hidden>
+      <div class="game-top">
+        <dl class="hud">
+          <div class="hud-item"><dt>Ruchy</dt><dd id="hud-moves">0</dd></div>
+          <div class="hud-item"><dt>Czas</dt><dd id="hud-time">0:00</dd></div>
+          <div class="hud-item"><dt>Pary</dt><dd id="hud-pairs">0 / 0</dd></div>
+        </dl>
+        <div class="game-controls">
+          <button type="button" id="restart-btn" class="btn btn-small">Nowa gra</button>
+          <button type="button" id="menu-btn" class="btn btn-small">Menu</button>
+        </div>
+      </div>
+      <div class="board-wrap" id="board-wrap">
+        <div id="board" class="board" role="group" aria-label="Plansza z kartami"></div>
+      </div>
+    </section>
+
+    <!-- Ekran końca gry -->
+    <section id="screen-end" class="screen screen-end" aria-labelledby="end-title" hidden>
+      <div class="end-card">
+        <h2 id="end-title" class="screen-title" tabindex="-1">Gratulacje!</h2>
+        <p id="end-stars" class="stars" role="img" aria-label=""></p>
+        <dl class="end-stats">
+          <div><dt>Ruchy</dt><dd id="end-moves"></dd></div>
+          <div><dt>Czas</dt><dd id="end-time"></dd></div>
+          <div><dt>Poziom</dt><dd id="end-level"></dd></div>
+        </dl>
+        <p id="end-record" class="end-record"></p>
+        <div class="end-actions">
+          <button type="button" id="again-btn" class="btn btn-primary">Zagraj ponownie</button>
+          <button type="button" id="end-menu-btn" class="btn">Menu</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="confirm-dialog" class="dialog" aria-labelledby="confirm-msg">
+    <form method="dialog">
+      <p id="confirm-msg" class="dialog-msg"></p>
+      <div class="dialog-actions">
+        <button type="submit" value="cancel" class="btn">Anuluj</button>
+        <button type="submit" value="ok" id="confirm-ok" class="btn btn-primary">Tak</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+  <canvas id="confetti" class="confetti" aria-hidden="true"></canvas>
+
+  <script src="game.js"></script>
+</body>
+</html>
