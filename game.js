@@ -584,7 +584,7 @@
     confettiCanvas.height = h * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const colors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444'];
+    const colors = ['#ffd23f', '#e63946', '#1d7fd6', '#2bb673', '#ff7eb6', '#ffffff'];
     const pieces = Array.from({ length: 160 }, () => ({
       x: Math.random() * w,
       y: -20 - Math.random() * h * 0.5,
@@ -614,6 +614,9 @@
         ctx.rotate(p.rot);
         ctx.fillStyle = p.color;
         ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#000';
+        ctx.strokeRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
         ctx.restore();
       });
       if (t < DURATION) {
