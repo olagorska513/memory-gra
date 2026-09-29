@@ -114,12 +114,12 @@
 ### 3.3 Co się dzieje z odnalezioną parą?
 
 - [ ] Zostaje odkryta na planszy
-- [ ] Znika z planszy (zostaje puste miejsce)
-- [x] Zostaje odkryta i jest wyszarzona / wyróżniona
+- [x] Znika z planszy (zostaje puste miejsce)
+- [ ] Zostaje odkryta i jest wyszarzona / wyróżniona
 
 > Propozycja domyślna: zostaje odkryta i jest wyróżniona
 
-**Odpowiedź:** Wyróżniona (nie wyszarzona)
+**Odpowiedź:** Po odkryciu para jest na chwilę wyróżniona, a potem znika z planszy. W jej miejscu zostaje puste pole, więc pozostałe karty nie zmieniają położenia.
 
 ### 3.4 Czy w trakcie odwracania / zakrywania kart kliknięcia mają być zablokowane?
 
@@ -479,7 +479,7 @@
 
 > Propozycja domyślna: wyróżnienie trafionej pary i konfetti po wygranej
 
-**Odpowiedź:**
+**Odpowiedź:** Trafiona para „podskakuje” i dopiero potem znika z planszy (3.3)
 
 ### 10.6 Jak plansza ma się zachowywać na telefonie?
 
@@ -565,7 +565,7 @@ Gra jest gotowa, gdy spełnia poniższe punkty. Dopisz, usuń lub zmień punkty 
 - [x] Karty tasują się losowo przy każdej nowej grze.
 - [x] W jednej turze da się odkryć najwyżej 2 karty.
 - [x] Kliknięcie tej samej karty dwa razy nie liczy się jako para.
-- [x] Niepasujące karty zakrywają się same, pasujące zostają odkryte.
+- [x] Niepasujące karty zakrywają się same, pasujące znikają z planszy (zostaje puste miejsce).
 - [x] Liczba ruchów i czas liczą się poprawnie.
 - [x] Po odkryciu wszystkich par pojawia się ekran końca gry z wynikiem.
 - [x] Rekord zostaje po odświeżeniu strony.
