@@ -27,6 +27,7 @@
   --flip-ms: 400ms;
   --bounce-ms: 600ms;
   --fade-ms: 300ms;
+  --motion: 1; /* natężenie animacji z suwaka: 0 = brak, 1 = 100%, 1.5 = 150% */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -53,11 +54,10 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --flip-ms: 0ms;
-    --fade-ms: 0ms;
-  }
+/* suwak na 0% – bez animacji (domyślnie, gdy system prosi o ograniczenie ruchu) */
+.no-motion {
+  --flip-ms: 0ms;
+  --fade-ms: 0ms;
 }
 
 /* ===== Podstawy ===== */
@@ -162,8 +162,8 @@ button { font: inherit; color: inherit; }
 
 @keyframes title-wave {
   0%, 30%, 100% { transform: none; }
-  10% { transform: translateY(-6px) rotateX(40deg) rotateY(-20deg); }
-  20% { transform: translateY(1px) rotateX(-12deg) rotateY(6deg); }
+  10% { transform: translateY(calc(-6px * var(--motion))) rotateX(calc(40deg * var(--motion))) rotateY(calc(-20deg * var(--motion))); }
+  20% { transform: translateY(calc(1px * var(--motion))) rotateX(calc(-12deg * var(--motion))) rotateY(calc(6deg * var(--motion))); }
 }
 
 .icon-btn {
@@ -330,6 +330,19 @@ button { font: inherit; color: inherit; }
 
 .resume-text { margin: 0; display: flex; flex-direction: column; }
 .resume-box .btn { flex-shrink: 0; white-space: nowrap; }
+
+/* Suwak natężenia animacji */
+.motion-group { grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; }
+.motion-group input { width: 100%; margin: 0; accent-color: var(--primary); }
+.motion-value {
+  min-width: 6.5em;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--plate);
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
 .resume-info { font-size: 0.85rem; color: var(--text-muted); }
 
 /* ===== Ekran gry ===== */
@@ -401,12 +414,13 @@ button { font: inherit; color: inherit; }
 @keyframes deal {
   from {
     opacity: 0;
-    transform: translateY(-60px) rotateX(-80deg) rotateZ(-10deg) scale(0.6);
+    transform: translateY(calc(-60px * var(--motion))) rotateX(calc(-80deg * var(--motion)))
+      rotateZ(calc(-10deg * var(--motion))) scale(calc(1 - 0.4 * min(var(--motion), 1)));
   }
 }
 
 @media (hover: hover) {
-  .card:not(.is-flipped):hover { transform: translateY(-4px) rotateX(12deg); }
+  .card:not(.is-flipped):hover { transform: translateY(calc(-4px * var(--motion))) rotateX(calc(12deg * var(--motion))); }
 }
 
 .card:focus-visible { outline-offset: 3px; }
@@ -471,19 +485,17 @@ button { font: inherit; color: inherit; }
 
 @keyframes bounce {
   0%   { transform: translateY(0) scale(1); }
-  30%  { transform: translateY(-18%) scale(1.08); }
-  55%  { transform: translateY(0) scale(0.97); }
-  75%  { transform: translateY(-6%) scale(1.02); }
+  30%  { transform: translateY(calc(-18% * var(--motion))) scale(calc(1 + 0.08 * var(--motion))); }
+  55%  { transform: translateY(0) scale(calc(1 - 0.03 * var(--motion))); }
+  75%  { transform: translateY(calc(-6% * var(--motion))) scale(calc(1 + 0.02 * var(--motion))); }
   100% { transform: translateY(0) scale(1); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .card,
-  .card.is-matched,
-  .app-title-letters span,
-  .end-card { animation: none; }
-  .card:not(.is-flipped):hover { transform: none; }
-}
+.no-motion .card,
+.no-motion .card.is-matched,
+.no-motion .app-title-letters span,
+.no-motion .end-card { animation: none; }
+.no-motion .card:not(.is-flipped):hover { transform: none; }
 
 /* ===== Ekran końca gry ===== */
 .screen-end {
@@ -507,7 +519,8 @@ button { font: inherit; color: inherit; }
 @keyframes end-pop {
   from {
     opacity: 0;
-    transform: translateY(40px) rotateX(70deg) scale(0.8);
+    transform: translateY(calc(40px * var(--motion))) rotateX(calc(70deg * var(--motion)))
+      scale(calc(1 - 0.2 * min(var(--motion), 1)));
   }
 }
 

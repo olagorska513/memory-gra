@@ -490,6 +490,13 @@
 
 **Odpowiedź:**
 
+### 10.7 Czy gracz może regulować natężenie animacji?
+
+- [x] Tak, suwakiem na ekranie startowym
+- [ ] Nie
+
+**Odpowiedź:** Suwak „Animacje” 0–150% (krok 10%). 100% to standardowy wygląd, 0% wyłącza animacje całkiem (także konfetti). Suwak zmienia siłę ruchu (wysokość podskoku, kąty obrotów, ilość konfetti), a nie jego tempo. Ustawienie jest zapamiętywane (9.5). Jeśli gracz go nie zmieniał, a system prosi o ograniczenie ruchu, suwak startuje od 0% (12.2).
+
 ---
 
 ## 11. Dźwięk

@@ -43,7 +43,8 @@
   const SUPABASE_KEY = 'sb_publishable_2oER9YopsGLw49THRoX0mw_ZStKdz0V';
 
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const timing = () => reducedMotion.matches
+  const MOTION_MAX = 150; // suwak animacji: 0 = wyłączone, 100 = standard
+  const timing = () => settings.motion === 0
     ? { flip: 0, bounce: 400, fade: 0 }
     : { flip: 400, bounce: 600, fade: 300 };
 
@@ -113,6 +114,10 @@
       level: LEVELS[s.level] ? s.level : 'easy',
       theme: THEMES[s.theme] ? s.theme : 'animals',
       muted: s.muted === true,
+      // bez zapisanego ustawienia: system prosi o ograniczenie ruchu → animacje wyłączone (12.2)
+      motion: Number.isInteger(s.motion) && s.motion >= 0 && s.motion <= MOTION_MAX
+        ? s.motion
+        : (reducedMotion.matches ? 0 : 100),
     };
   }
 
@@ -856,13 +861,27 @@
     muteBtn.querySelector('.mute-icon').textContent = settings.muted ? '🔇' : '🔊';
   }
 
+  // ===== Natężenie animacji =====
+  // CSS mnoży przesunięcia i obroty przez --motion; 0 wyłącza animacje całkiem (.no-motion)
+
+  function renderMotion() {
+    const value = settings.motion;
+    const text = value === 0 ? 'Wyłączone' : value + '%';
+    const range = startForm.elements.motion;
+    range.value = String(value);
+    range.setAttribute('aria-valuetext', text);
+    $('motion-value').textContent = text;
+    document.documentElement.style.setProperty('--motion', String(value / 100));
+    document.documentElement.classList.toggle('no-motion', value === 0);
+  }
+
   // ===== Konfetti =====
 
   const confettiCanvas = $('confetti');
   let confettiFrame = null;
 
   function launchConfetti() {
-    if (reducedMotion.matches) return;
+    if (settings.motion === 0) return;
     const ctx = confettiCanvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
     const w = window.innerWidth;
@@ -872,7 +891,7 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     const colors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444'];
-    const pieces = Array.from({ length: 160 }, () => ({
+    const pieces = Array.from({ length: Math.round(160 * settings.motion / 100) }, () => ({
       x: Math.random() * w,
       y: -20 - Math.random() * h * 0.5,
       vx: (Math.random() - 0.5) * 4,
@@ -919,6 +938,12 @@
     settings.level = startForm.elements.level.value;
     settings.theme = startForm.elements.theme.value;
     saveSettings();
+  });
+
+  // podgląd na żywo podczas przesuwania (tytuł faluje cały czas); zapis przy „change” powyżej
+  startForm.elements.motion.addEventListener('input', () => {
+    settings.motion = Number(startForm.elements.motion.value);
+    renderMotion();
   });
 
   startForm.addEventListener('submit', (e) => {
@@ -1034,5 +1059,6 @@
   // ===== Start =====
 
   renderMute();
+  renderMotion();
   showStart();
 })();
