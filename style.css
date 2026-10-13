@@ -16,6 +16,10 @@
   --card-front-s: 85%;
   --star-on: #f59e0b;
   --star-off: #c9ccd8;
+  --title-1: #4f46e5;
+  --title-1-depth: #312e81;
+  --title-2: #db2777;
+  --title-2-depth: #831843;
   --radius: 12px;
   --flip-ms: 400ms;
   --bounce-ms: 600ms;
@@ -36,6 +40,10 @@
     --card-front-l: 28%;
     --card-front-s: 40%;
     --star-off: #454a5c;
+    --title-1: #a5b4fc;
+    --title-1-depth: #4338ca;
+    --title-2: #f9a8d4;
+    --title-2-depth: #9d174d;
   }
 }
 
@@ -94,9 +102,44 @@ button { font: inherit; color: inherit; }
 
 .app-title {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+}
+
+/* Tytuł 3D: wypukłe litery, co kilka sekund przechodzi przez nie fala */
+.app-title-letters {
+  display: inline-block;
+  perspective: 400px;
+}
+
+.app-title-letters span {
+  display: inline-block;
+  color: var(--title-1);
+  text-shadow:
+    1px 1px 0 var(--title-1-depth),
+    2px 2px 0 var(--title-1-depth),
+    3px 3px 0 var(--title-1-depth),
+    4px 5px 6px rgba(0, 0, 0, 0.25);
+  transform-origin: 50% 70%;
+  animation: title-wave 4s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 90ms);
+}
+
+.app-title-letters span:nth-child(even) {
+  color: var(--title-2);
+  text-shadow:
+    1px 1px 0 var(--title-2-depth),
+    2px 2px 0 var(--title-2-depth),
+    3px 3px 0 var(--title-2-depth),
+    4px 5px 6px rgba(0, 0, 0, 0.25);
+}
+
+@keyframes title-wave {
+  0%, 30%, 100% { transform: none; }
+  10% { transform: translateY(-6px) rotateX(40deg) rotateY(-20deg); }
+  20% { transform: translateY(1px) rotateX(-12deg) rotateY(6deg); }
 }
 
 .icon-btn {
@@ -288,6 +331,7 @@ button { font: inherit; color: inherit; }
   grid-template-columns: repeat(var(--cols), var(--card-size));
   grid-auto-rows: var(--card-size);
   gap: var(--gap);
+  perspective: 1000px;
 }
 
 /* ===== Karta ===== */
@@ -302,7 +346,21 @@ button { font: inherit; color: inherit; }
   cursor: pointer;
   perspective: 800px;
   touch-action: manipulation;
-  transition: opacity var(--fade-ms) ease, visibility 0s linear var(--fade-ms);
+  transition: opacity var(--fade-ms) ease, visibility 0s linear var(--fade-ms), transform 0.2s ease;
+  /* rozdanie: karty kolejno wlatują na planszę z obrotem 3D */
+  animation: deal 550ms cubic-bezier(0.2, 0.8, 0.3, 1.15) backwards;
+  animation-delay: calc(var(--i, 0) * 30ms);
+}
+
+@keyframes deal {
+  from {
+    opacity: 0;
+    transform: translateY(-60px) rotateX(-80deg) rotateZ(-10deg) scale(0.6);
+  }
+}
+
+@media (hover: hover) {
+  .card:not(.is-flipped):hover { transform: translateY(-4px) rotateX(12deg); }
 }
 
 .card:focus-visible { outline-offset: 3px; }
@@ -371,7 +429,11 @@ button { font: inherit; color: inherit; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card.is-matched { animation: none; }
+  .card,
+  .card.is-matched,
+  .app-title-letters span,
+  .end-card { animation: none; }
+  .card:not(.is-flipped):hover { transform: none; }
 }
 
 /* ===== Ekran końca gry ===== */
@@ -379,6 +441,7 @@ button { font: inherit; color: inherit; }
   align-items: center;
   justify-content: center;
   overflow-y: auto;
+  perspective: 900px;
 }
 
 .end-card {
@@ -389,6 +452,14 @@ button { font: inherit; color: inherit; }
   border-radius: 20px;
   background: var(--surface);
   text-align: center;
+  animation: end-pop 650ms cubic-bezier(0.2, 0.8, 0.3, 1.15) backwards;
+}
+
+@keyframes end-pop {
+  from {
+    opacity: 0;
+    transform: translateY(40px) rotateX(70deg) scale(0.8);
+  }
 }
 
 .stars {

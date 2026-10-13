@@ -300,6 +300,7 @@
     btn.className = 'card';
     btn.dataset.index = String(index);
     btn.style.setProperty('--hue', String(Math.round((card.pairId * 137.5) % 360)));
+    btn.style.setProperty('--i', String(index)); // opóźnienie animacji rozdania
 
     const inner = document.createElement('span');
     inner.className = 'card-inner';
