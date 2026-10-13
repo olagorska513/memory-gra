@@ -1,6 +1,9 @@
 /* ===== Paleta i zmienne ===== */
 :root {
   --bg: #f5f6fa;
+  --page-bg: #f1f1f2; /* kolor środka obrazu tła – bez widocznej granicy */
+  --page-image: url("img/tlo-jasne.webp");
+  --plate: rgba(255, 255, 255, 0.72); /* podkładka pod napisy leżące na ozdobach tła */
   --surface: #ffffff;
   --text: #1c1f2b;
   --text-muted: #565b6e;
@@ -29,6 +32,9 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #12141c;
+    --page-bg: #161925;
+    --page-image: url("img/tlo-ciemne.webp");
+    --plate: rgba(29, 32, 43, 0.72);
     --surface: #1d202b;
     --text: #eef0f6;
     --text-muted: #a9aec0;
@@ -67,11 +73,24 @@ body {
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
-  background: var(--bg);
+  background: var(--page-bg) var(--page-image) center / cover no-repeat;
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   line-height: 1.4;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Ekran w pionie: przy „cover” zostałby sam pusty środek obrazu,
+   więc cały obraz w szerokości ekranu leży przy dolnej krawędzi.
+   Obraz ma proporcje 1672×941, czyli wysokość 56.28vw; jego górną krawędź
+   wygładza krótkie przejście w kolor strony. */
+@media (max-aspect-ratio: 4/5) {
+  body {
+    background:
+      linear-gradient(var(--page-bg), transparent) center bottom 48.3vw / 100% 8vw no-repeat,
+      var(--page-image) center bottom / 100% auto no-repeat,
+      var(--page-bg);
+  }
 }
 
 button { font: inherit; color: inherit; }
@@ -102,6 +121,11 @@ button { font: inherit; color: inherit; }
 
 .app-title {
   margin: 0;
+  padding: 2px 14px 4px;
+  border-radius: 999px;
+  background: var(--plate);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   font-size: 1.6rem;
   font-weight: 800;
   letter-spacing: 0.03em;
@@ -234,8 +258,11 @@ button { font: inherit; color: inherit; }
 }
 
 .choice-group legend {
-  padding: 0;
-  margin-bottom: 8px;
+  /* plakietka jak pod tytułem – napis leży czasem na ozdobach tła (telefon w poziomie) */
+  padding: 1px 10px;
+  margin: 0 0 8px -10px;
+  border-radius: 999px;
+  background: var(--plate);
   font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -284,7 +311,26 @@ button { font: inherit; color: inherit; }
 
 .btn-play { align-self: center; min-width: 200px; min-height: 52px; font-size: 1.1rem; }
 
-#clear-records-btn { margin-top: 16px; }
+#clear-records-btn { margin-top: 16px; border-radius: 999px; background: var(--plate); }
+
+/* Niedokończona gra zapisana w bazie */
+.resume-box {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  border: 2px dashed var(--primary);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.resume-text { margin: 0; display: flex; flex-direction: column; }
+.resume-box .btn { flex-shrink: 0; white-space: nowrap; }
+.resume-info { font-size: 0.85rem; color: var(--text-muted); }
 
 /* ===== Ekran gry ===== */
 .game-top {
@@ -391,10 +437,13 @@ button { font: inherit; color: inherit; }
 
 .card-back {
   transform: rotateY(0deg);
-  background: linear-gradient(135deg, var(--card-back-1), var(--card-back-2));
-  color: #ffffff;
+  /* warstwy papieru (rozeta z białym środkiem) na kolorowym gradiencie */
+  background:
+    url("img/rewers.svg") center / 100% 100% no-repeat,
+    linear-gradient(135deg, var(--card-back-1), var(--card-back-2));
+  color: var(--card-back-1);
   font-weight: 800;
-  font-size: calc(var(--card-size) * 0.42);
+  font-size: calc(var(--card-size) * 0.24);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
 }
 
@@ -497,6 +546,43 @@ button { font: inherit; color: inherit; }
 .dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
 .dialog-msg { margin: 0 0 20px; font-size: 1.05rem; }
 .dialog-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.dialog-title { margin: 0 0 8px; font-size: 1.25rem; }
+
+/* Logowanie / zakładanie konta */
+.auth-form { display: flex; flex-direction: column; gap: 12px; }
+.auth-hint { margin: 0; font-size: 0.9rem; color: var(--text-muted); }
+
+.field { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 0.9rem; }
+.field input {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-weight: 400;
+}
+.field input:focus-visible { outline: 3px solid var(--focus); outline-offset: 0; }
+
+.auth-error { margin: 0; min-height: 1.4em; font-size: 0.9rem; color: #dc2626; }
+@media (prefers-color-scheme: dark) { .auth-error { color: #f87171; } }
+
+.auth-switch { align-self: center; }
+
+.account-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0 4px;
+  margin: 8px 0 0;
+  padding: 0 0 0 14px;
+  border-radius: 999px;
+  background: var(--plate);
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
 
 /* ===== Konfetti ===== */
 .confetti {

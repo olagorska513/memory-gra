@@ -27,11 +27,20 @@
     ],
   };
 
+  const THEME_LABELS = { animals: 'Zwierzęta', fruits: 'Owoce', vehicles: 'Pojazdy' };
+
   const MISMATCH_MS = 1000; // czas pokazania niepasujących kart (3.2)
   const MAX_CARD_PX = 140;
 
   const STORAGE_SETTINGS = 'memory.settings';
   const STORAGE_RECORDS = 'memory.records';
+  const STORAGE_SESSION = 'memory.session';
+
+  // Baza Supabase (schemat: supabase/schema.sql). Klucz „publishable” jest publiczny –
+  // nigdy nie wpisuj tu klucza „secret” / „service_role”.
+  // Puste wartości = gra działa bez bazy (rekordy tylko w przeglądarce).
+  const SUPABASE_URL = 'https://dwlxpmnndllxutrprjkt.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_2oER9YopsGLw49THRoX0mw_ZStKdz0V';
 
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const timing = () => reducedMotion.matches
@@ -52,13 +61,18 @@
   const clearRecordsBtn = $('clear-records-btn');
   const confirmDialog = $('confirm-dialog');
   const announcer = $('announcer');
+  const resumeBox = $('resume-box');
+  const authDialog = $('auth-dialog');
+  const authForm = $('auth-form');
 
   // ===== Stan =====
 
   const settings = loadSettings();
   let records = loadRecords();
+  let savedGame = null; // niedokończona gra z bazy, do wznowienia
 
   const game = {
+    db: { id: null }, // id gry w bazie; nowy obiekt na każdą grę, by spóźnione zapisy trafiały do właściwej
     deck: [],
     flipped: [],
     locked: false,
@@ -124,6 +138,196 @@
     return !record
       || result.moves < record.moves
       || (result.moves === record.moves && result.timeMs < record.timeMs);
+  }
+
+  // ===== Baza danych (Supabase przez zwykły fetch, bez bibliotek) =====
+  // Gracz nie ma konta (13.1) – przy pierwszej wizycie dostaje anonimową sesję,
+  // a baza (RLS) pokazuje mu tylko jego gry.
+
+  const dbEnabled = Boolean(SUPABASE_URL && SUPABASE_KEY);
+  let session = readJson(STORAGE_SESSION);
+  let sessionPromise = null;
+  let dbQueue = Promise.resolve();
+
+  let playerEpoch = 0; // zmienia się przy logowaniu/wylogowaniu – spóźnione odczyty starego gracza są pomijane
+
+  async function authCall(path, method, body, token) {
+    const headers = { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = 'Bearer ' + token;
+    const res = await fetch(SUPABASE_URL + '/auth/v1/' + path, { method, headers, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error('Supabase auth: ' + res.status);
+      err.code = data.error_code;
+      throw err;
+    }
+    return data;
+  }
+
+  function setSession(data) {
+    session = data && {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresAt: data.expires_at,
+      email: data.user && !data.user.is_anonymous ? data.user.email : null, // null = gość
+    };
+    writeJson(STORAGE_SESSION, session);
+  }
+
+  async function authRequest(path, body) {
+    setSession(await authCall(path, 'POST', body));
+  }
+
+  async function refreshSession() {
+    if (session && session.expiresAt - 60 > Date.now() / 1000) return;
+    if (session && session.refreshToken) {
+      try {
+        await authRequest('token?grant_type=refresh_token', { refresh_token: session.refreshToken });
+        return;
+      } catch (e) {
+        // sesja wygasła lub została usunięta – poniżej powstanie nowy gracz
+      }
+    }
+    if (session && session.email) resetPlayerData(); // wygasło konto – nie pokazuj gościowi jego rekordów
+    await authRequest('signup', {});
+  }
+
+  function ensureSession() {
+    // jedna sesja naraz – równoległe zapytania nie zakładają kilku graczy
+    if (!sessionPromise) sessionPromise = refreshSession().finally(() => { sessionPromise = null; });
+    return sessionPromise;
+  }
+
+  async function api(path, method, body) {
+    await ensureSession();
+    const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+      method: method || 'GET',
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: 'Bearer ' + session.accessToken,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error('Supabase ' + res.status + ': ' + await res.text());
+    return res.json();
+  }
+
+  // Zapisy idą po kolei (np. zapis ruchu nie wyprzedzi utworzenia gry).
+  // Błąd bazy nie przerywa gry – wynik zostaje wtedy tylko w przeglądarce.
+  function dbWrite(fn) {
+    if (!dbEnabled) return;
+    dbQueue = dbQueue.then(fn).catch((e) => console.warn('Memoriada: zapis do bazy nie powiódł się.', e));
+  }
+
+  function matchedPairIds() {
+    const ids = new Set();
+    game.deck.forEach((c) => { if (c.status === 'matched' || c.status === 'gone') ids.add(c.pairId); });
+    return Array.from(ids);
+  }
+
+  // pierwsze kliknięcie karty – zakłada grę w bazie (poprzednia niedokończona zostaje porzucona)
+  function dbStartGame() {
+    const ref = game.db;
+    const body = {
+      p_level: settings.level,
+      p_theme: settings.theme,
+      p_deck: game.deck.map(({ pairId, emoji, name }) => ({ pairId, emoji, name })),
+    };
+    dbWrite(async () => {
+      const row = await api('rpc/start_game', 'POST', body);
+      ref.id = (Array.isArray(row) ? row[0] : row).id;
+    });
+  }
+
+  // zapisuje postęp; extra np. { status: 'finished' } albo { status: 'abandoned' }
+  function dbSaveGame(extra) {
+    const ref = game.db;
+    const body = Object.assign({
+      moves: game.moves,
+      elapsed_ms: Math.round(elapsed()),
+      matched_pairs: matchedPairIds(),
+    }, extra);
+    dbWrite(async () => {
+      if (ref.id) await api('games?id=eq.' + ref.id, 'PATCH', body);
+    });
+  }
+
+  function dbClearRecords() {
+    dbWrite(() => api('games?status=eq.finished', 'DELETE'));
+  }
+
+  // ===== Konto gracza =====
+
+  // Gość zakłada konto – to ten sam użytkownik, więc jego gry i rekordy zostają.
+  async function register(email, password) {
+    await ensureSession();
+    await authCall('user', 'PUT', { email, password }, session.accessToken);
+    await authRequest('token?grant_type=refresh_token', { refresh_token: session.refreshToken });
+  }
+
+  // Logowanie na istniejące konto – wyniki gościa z tej przeglądarki nie są dołączane.
+  async function login(email, password) {
+    await dbQueue;
+    await authRequest('token?grant_type=password', { email, password });
+    resetPlayerData();
+  }
+
+  async function logout() {
+    await dbQueue;
+    try {
+      await authCall('logout', 'POST', undefined, session.accessToken);
+    } catch (e) {
+      // sesja i tak jest usuwana z przeglądarki
+    }
+    setSession(null);
+    resetPlayerData();
+  }
+
+  function resetPlayerData() {
+    playerEpoch++;
+    records = {};
+    writeJson(STORAGE_RECORDS, records);
+    savedGame = null;
+  }
+
+  const AUTH_ERRORS = {
+    invalid_credentials: 'Nieprawidłowy e-mail lub hasło.',
+    email_exists: 'Konto z tym adresem już istnieje – zaloguj się.',
+    user_already_exists: 'Konto z tym adresem już istnieje – zaloguj się.',
+    weak_password: 'Hasło musi mieć co najmniej 6 znaków.',
+    email_address_invalid: 'Nieprawidłowy adres e-mail.',
+    validation_failed: 'Nieprawidłowy adres e-mail.',
+    over_request_rate_limit: 'Za dużo prób. Spróbuj ponownie za chwilę.',
+  };
+
+  // rekordy i niedokończona gra z bazy; uzupełniają to, co jest w przeglądarce
+  async function dbLoad() {
+    if (!dbEnabled) return;
+    const epoch = playerEpoch;
+    try {
+      await dbQueue; // najpierw zapisz zaległe zmiany
+      const [best, open] = await Promise.all([
+        api('best_results?select=level,moves,elapsed_ms'),
+        api('games?status=eq.in_progress&select=*&limit=1'),
+      ]);
+      if (epoch !== playerEpoch) return;
+      best.forEach((r) => {
+        const rec = { moves: r.moves, timeMs: r.elapsed_ms };
+        if (LEVELS[r.level] && isBetter(rec, records[r.level])) records[r.level] = rec;
+      });
+      writeJson(STORAGE_RECORDS, records);
+      savedGame = open[0] || null;
+    } catch (e) {
+      console.warn('Memoriada: brak połączenia z bazą.', e);
+      return;
+    }
+    if (currentScreen() === 'start') {
+      renderRecords();
+      renderResume();
+      renderAccount();
+    }
   }
 
   // ===== Pomocnicze =====
@@ -201,13 +405,67 @@
     clearRecordsBtn.disabled = Object.keys(records).length === 0;
   }
 
+  function renderResume() {
+    const g = savedGame;
+    resumeBox.hidden = !g;
+    if (!g) return;
+    $('resume-info').textContent = [
+      LEVELS[g.level].label,
+      THEME_LABELS[g.theme],
+      'pary ' + g.matched_pairs.length + ' / ' + g.total_pairs,
+      movesText(g.moves),
+      formatTime(g.elapsed_ms),
+    ].join(' · ');
+  }
+
+  function renderAccount() {
+    const email = session && session.email;
+    $('account-bar').hidden = !dbEnabled;
+    $('account-status').textContent = email ? 'Zalogowano: ' + email : 'Grasz jako gość ·';
+    $('login-btn').hidden = Boolean(email);
+    $('logout-btn').hidden = !email;
+  }
+
+  // ===== Okno logowania / zakładania konta =====
+
+  let authMode = 'login';
+
+  function setAuthMode(mode) {
+    authMode = mode;
+    const reg = mode === 'register';
+    $('auth-title').textContent = reg ? 'Załóż konto' : 'Zaloguj się';
+    $('auth-hint').textContent = reg
+      ? 'Twoje dotychczasowe wyniki i niedokończona gra przejdą na nowe konto.'
+      : 'Zaloguj się, aby mieć swoje wyniki na każdym urządzeniu. Wyniki zdobyte jako gość nie zostaną dołączone do konta.';
+    $('auth-submit').textContent = reg ? 'Załóż konto' : 'Zaloguj';
+    $('auth-switch').textContent = reg ? 'Masz już konto? Zaloguj się' : 'Nie masz konta? Załóż je';
+    authForm.elements.password.autocomplete = reg ? 'new-password' : 'current-password';
+    $('auth-error').textContent = '';
+  }
+
+  function openAuth() {
+    authForm.reset();
+    setAuthMode('login');
+    authDialog.showModal();
+  }
+
+  function refreshStart() {
+    renderRecords();
+    renderResume();
+    renderAccount();
+    dbLoad();
+  }
+
   function showStart() {
     resetGame();
     startForm.elements.level.value = settings.level;
     startForm.elements.theme.value = settings.theme;
     renderRecords();
+    renderResume();
+    renderAccount();
     showScreen('start');
     $('start-title').focus();
+    dbLoad();
   }
 
   // ===== Stoper =====
@@ -248,6 +506,7 @@
     clearLater();
     pauseTimer();
     Object.assign(game, {
+      db: { id: null },
       deck: [],
       flipped: [],
       locked: false,
@@ -263,7 +522,8 @@
   }
 
   function isInProgress() {
-    return game.started && !game.finished;
+    // wznowiona gra ma postęp, nawet jeśli gracz nie kliknął jeszcze karty
+    return (game.started || game.db.id !== null) && !game.finished;
   }
 
   function startGame() {
@@ -277,12 +537,31 @@
       cards.push({ pairId, emoji, name }, { pairId, emoji, name });
     });
     shuffle(cards);
+    showBoard(cards, new Set());
+  }
 
+  // wznowienie niedokończonej gry z bazy (stoper rusza po kliknięciu karty – 9.2)
+  function resumeGame(row) {
+    resetGame();
+    settings.level = row.level;
+    settings.theme = row.theme;
+    saveSettings();
+    game.db.id = row.id;
+    game.totalPairs = row.total_pairs;
+    game.moves = row.moves;
+    game.elapsedMs = row.elapsed_ms;
+    const matched = new Set(row.matched_pairs);
+    game.pairsFound = matched.size;
+    showBoard(row.deck, matched);
+  }
+
+  function showBoard(cards, matchedPairs) {
     const frag = document.createDocumentFragment();
     game.deck = cards.map((c, index) => {
       const card = Object.assign({ index, status: 'hidden', el: createCardElement(c, index) }, c);
       frag.appendChild(card.el);
       updateCardLabel(card);
+      if (matchedPairs.has(card.pairId)) removeCard(card);
       return card;
     });
     board.appendChild(frag);
@@ -291,7 +570,7 @@
     updateTime();
     showScreen('game');
     layoutBoard();
-    game.deck[0].el.focus();
+    game.deck.find((c) => c.status !== 'gone').el.focus();
   }
 
   function createCardElement(card, index) {
@@ -348,6 +627,7 @@
     if (!game.started) {
       game.started = true;
       startTimer();
+      if (game.db.id === null) dbStartGame();
     }
 
     setStatus(card, 'shown');
@@ -364,6 +644,7 @@
     if (a.pairId === b.pairId) {
       later(() => onMatch(a, b), t.flip);
     } else {
+      dbSaveGame();
       later(() => {
         playSound('miss');
         announce('Nie pasują: ' + a.name + ' i ' + b.name + '.');
@@ -387,8 +668,10 @@
     if (won) {
       game.finished = true;
       pauseTimer();
+      dbSaveGame({ status: 'finished' });
       announce('Para: ' + a.name + '. Znaleziono wszystkie pary!');
     } else {
+      dbSaveGame();
       playSound('match');
       announce('Para: ' + a.name + '. Znaleziono ' + game.pairsFound + ' z ' + game.totalPairs + '.');
     }
@@ -520,7 +803,10 @@
   }
 
   async function confirmAbortIfPlaying() {
-    return !isInProgress() || confirmAction('Czy na pewno przerwać grę? Obecny postęp zostanie utracony.', 'Przerwij');
+    if (!isInProgress()) return true;
+    const ok = await confirmAction('Czy na pewno przerwać grę? Obecny postęp zostanie utracony.', 'Przerwij');
+    if (ok) dbSaveGame({ status: 'abandoned' });
+    return ok;
   }
 
   // ===== Dźwięk (Web Audio, bez plików) =====
@@ -645,6 +931,7 @@
     if (await confirmAction('Usunąć rekordy ze wszystkich poziomów?', 'Usuń')) {
       records = {};
       writeJson(STORAGE_RECORDS, records);
+      dbClearRecords();
       renderRecords();
     }
     clearRecordsBtn.focus();
@@ -679,6 +966,49 @@
 
   $('end-menu-btn').addEventListener('click', showStart);
 
+  $('login-btn').addEventListener('click', openAuth);
+
+  $('logout-btn').addEventListener('click', async () => {
+    await logout();
+    announce('Wylogowano. Grasz jako gość.');
+    refreshStart();
+    $('login-btn').focus();
+  });
+
+  $('auth-switch').addEventListener('click', () => {
+    setAuthMode(authMode === 'login' ? 'register' : 'login');
+  });
+
+  $('auth-cancel').addEventListener('click', () => authDialog.close());
+
+  authForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = authForm.elements.email.value.trim();
+    const password = authForm.elements.password.value;
+    const submit = $('auth-submit');
+    submit.disabled = true;
+    $('auth-error').textContent = '';
+    try {
+      if (authMode === 'register') await register(email, password);
+      else await login(email, password);
+      authDialog.close();
+      announce('Zalogowano jako ' + email + '.');
+      refreshStart();
+      $('logout-btn').focus();
+    } catch (err) {
+      $('auth-error').textContent = AUTH_ERRORS[err.code] || 'Nie udało się połączyć z serwerem. Spróbuj ponownie.';
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
+  $('resume-btn').addEventListener('click', () => {
+    unlockAudio();
+    const row = savedGame;
+    savedGame = null;
+    resumeGame(row);
+  });
+
   muteBtn.addEventListener('click', () => {
     settings.muted = !settings.muted;
     saveSettings();
@@ -687,8 +1017,12 @@
   });
 
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') pauseTimer();
-    else resumeTimerIfPlaying();
+    if (document.visibilityState === 'hidden') {
+      pauseTimer();
+      if (game.started && !game.finished) dbSaveGame(); // dokładny czas na wypadek zamknięcia karty
+    } else {
+      resumeTimerIfPlaying();
+    }
   });
 
   if (window.ResizeObserver) {

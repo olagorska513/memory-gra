@@ -314,7 +314,7 @@
 
 > Propozycja domyślna: jeden rekord na każdy poziom, zapisany w przeglądarce (`localStorage`)
 
-**Odpowiedź:** Zapisany w przeglądarce (`localStorage`)
+**Odpowiedź:** Zapisany w bazie Supabase (tabela `games`, widok `best_results`), z kopią w przeglądarce (`localStorage`) – bez internetu gra działa na kopii lokalnej
 
 ### 7.5 (Jeśli jest tabela wyników) Czy gracz wpisuje swój nick po wygranej?
 
@@ -411,12 +411,12 @@
 
 ### 9.4 Czy niedokończona gra ma zostać po odświeżeniu strony?
 
-- [ ] Tak, gra wznawia się w tym samym miejscu
-- [x] Nie, odświeżenie zaczyna od nowa
+- [x] Tak, gra wznawia się w tym samym miejscu
+- [ ] Nie, odświeżenie zaczyna od nowa
 
 > Propozycja domyślna: nie
 
-**Odpowiedź:**
+**Odpowiedź:** Postęp (układ kart, znalezione pary, ruchy, czas) zapisuje się w bazie Supabase po każdym ruchu. Na ekranie startowym pojawia się „Wznów grę”; stoper rusza po kliknięciu karty. Przerwanie gry przyciskiem („Nowa gra” / „Menu”) kasuje możliwość wznowienia.
 
 ### 9.5 Czy ustawienia (poziom, motyw, wyciszenie) mają być zapamiętywane między wizytami?
 
@@ -546,8 +546,8 @@
 ### 13.1 Czego świadomie NIE robimy w pierwszej wersji?
 
 - [x] Gra przez internet / multiplayer online
-- [x] Konta graczy i logowanie
-- [x] Ranking na serwerze
+- [ ] Konta graczy i logowanie – **zmiana:** logowanie jest dostępne, ale nieobowiązkowe. Bez logowania gracz gra jako gość (anonimowa sesja w tle). Na ekranie startowym może się zalogować lub założyć konto (e-mail + hasło, min. 6 znaków, bez potwierdzania e-maila). Założenie konta przenosi wyniki i niedokończoną grę gościa; zalogowanie na istniejące konto ich nie dołącza.
+- [x] Ranking na serwerze (wyniki są w bazie, ale każdy gracz widzi tylko swoje)
 - [x] Wgrywanie własnych zdjęć jako kart
 - [ ] Inne: …
 
@@ -569,6 +569,9 @@ Gra jest gotowa, gdy spełnia poniższe punkty. Dopisz, usuń lub zmień punkty 
 - [x] Liczba ruchów i czas liczą się poprawnie.
 - [x] Po odkryciu wszystkich par pojawia się ekran końca gry z wynikiem.
 - [x] Rekord zostaje po odświeżeniu strony.
+- [x] Po odświeżeniu strony w trakcie gry można ją wznowić w tym samym miejscu.
+- [x] Wynik każdej ukończonej gry zapisuje się w bazie Supabase.
+- [x] Po zalogowaniu na innym urządzeniu gracz widzi swoje rekordy i może wznowić niedokończoną grę.
 - [x] Gra działa i mieści się na ekranie telefonu.
 - [x] W konsoli przeglądarki nie ma błędów.
 - [ ] Inne: …

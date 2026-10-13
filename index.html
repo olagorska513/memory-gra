@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
   <title>Memoriada</title>
+  <link rel="icon" href="img/ikona.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="img/ikona-180.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -19,6 +21,14 @@
     <!-- Ekran startowy -->
     <section id="screen-start" class="screen screen-start" aria-labelledby="start-title">
       <h2 id="start-title" class="screen-title" tabindex="-1">Nowa gra</h2>
+
+      <div id="resume-box" class="resume-box" hidden>
+        <p class="resume-text">
+          <strong>Masz niedokończoną grę</strong>
+          <span id="resume-info" class="resume-info"></span>
+        </p>
+        <button type="button" id="resume-btn" class="btn btn-primary">Wznów grę</button>
+      </div>
 
       <form id="start-form" class="start-form">
         <fieldset class="choice-group">
@@ -78,6 +88,12 @@
       </form>
 
       <button type="button" id="clear-records-btn" class="btn btn-link">Wyczyść rekordy</button>
+
+      <p id="account-bar" class="account-bar" hidden>
+        <span id="account-status"></span>
+        <button type="button" id="login-btn" class="btn btn-link">Zaloguj się</button>
+        <button type="button" id="logout-btn" class="btn btn-link" hidden>Wyloguj</button>
+      </p>
     </section>
 
     <!-- Ekran gry -->
@@ -124,6 +140,27 @@
         <button type="submit" value="cancel" class="btn">Anuluj</button>
         <button type="submit" value="ok" id="confirm-ok" class="btn btn-primary">Tak</button>
       </div>
+    </form>
+  </dialog>
+
+  <dialog id="auth-dialog" class="dialog" aria-labelledby="auth-title">
+    <form id="auth-form" class="auth-form">
+      <h2 id="auth-title" class="dialog-title">Zaloguj się</h2>
+      <p id="auth-hint" class="auth-hint"></p>
+      <label class="field">
+        <span>E-mail</span>
+        <input type="email" name="email" autocomplete="email" required>
+      </label>
+      <label class="field">
+        <span>Hasło</span>
+        <input type="password" name="password" autocomplete="current-password" minlength="6" required>
+      </label>
+      <p id="auth-error" class="auth-error" role="alert"></p>
+      <div class="dialog-actions">
+        <button type="button" id="auth-cancel" class="btn">Anuluj</button>
+        <button type="submit" id="auth-submit" class="btn btn-primary">Zaloguj</button>
+      </div>
+      <button type="button" id="auth-switch" class="btn btn-link auth-switch"></button>
     </form>
   </dialog>
 
